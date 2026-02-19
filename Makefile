@@ -1,3 +1,9 @@
+# Env variables for development/testing.
+export NODE_ENV=testing
+export API_KEY=secret_123
+export PORT=3000
+export IS_DEBUG=true
+
 .DEFAULT_GOAL := all
 .PHONY: all build test run format clean
 
@@ -9,11 +15,11 @@ build:
 
 test:
 	@echo "Running tests..."
-	NODE_ENV=testing API_KEY=secret_123 IS_DEBUG=true PORT=3000 zig test src/tests.zig
+	zig build test --summary all
 
 run:
 	@echo "Running locally..."
-	NODE_ENV=testing API_KEY=secret_123 IS_DEBUG=true PORT=3000 zig run src/main.zig
+	zig run src/main.zig
 
 format:
 	@echo "Formatting source files..."
