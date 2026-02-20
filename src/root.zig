@@ -1,32 +1,38 @@
 const std = @import("std");
 
-pub fn loadAll(comptime T: type, allocator: std.mem.Allocator, dotenv_path: ?[]const u8) !T {
-    var result: T = undefined;
+fn getFieldValueOwned(allocator: std.mem.Allocator, field: anytype, dotenv_path: ?[]const u8) !?[]const u8 {
+    var found_val: ?[]const u8 = null;
     const args = try std.process.argsAlloc(allocator);
     defer std.process.argsFree(allocator, args);
 
+    // Command-line flags (e.g. --port 3000)
+    for (args, 0..) |arg, i| {
+        if (std.mem.eql(u8, arg, "--" ++ field.name)) {
+            if (i + 1 < args.len) found_val = try allocator.dupe(u8, args[i + 1]);
+            break;
+        }
+    }
+
+    // OS environment
+    if (found_val == null) {
+        found_val = std.process.getEnvVarOwned(allocator, field.name) catch null;
+    }
+
+    // .env File
+    if (found_val == null) {
+        found_val = try findInDotEnv(allocator, dotenv_path, field.name);
+    }
+
+    return found_val;
+}
+
+pub fn loadAll(comptime T: type, allocator: std.mem.Allocator, dotenv_path: ?[]const u8) !T {
+    var result: T = undefined;
+    var found_val: ?[]const u8 = null;
     inline for (std.meta.fields(T)) |field| {
-        var found_val: ?[]const u8 = null;
-
-        // Command-line flags (e.g. --port3000)
-        for (args, 0..) |arg, i| {
-            if (std.mem.eql(u8, arg, "--" ++ field.name)) {
-                if (i + 1 < args.len) found_val = args[i + 1];
-            }
-        }
-
-        // OS environment
-        if (found_val == null) {
-            found_val = std.process.getEnvVarOwned(allocator, field.name) catch null;
-        }
-
-        // .env File
-        if (found_val == null and dotenv_path != null) {
-            found_val = try findInDotEnv(allocator, dotenv_path.?, field.name);
-        }
-
-        // default value
+        found_val = try getFieldValueOwned(allocator, field, dotenv_path);
         if (found_val) |val| {
+            defer allocator.free(val);
             @field(result, field.name) = switch (field.type) {
                 []const u8 => try allocator.dupe(u8, val),
                 u16 => try std.fmt.parseInt(u16, val, 10),
@@ -41,6 +47,19 @@ pub fn loadAll(comptime T: type, allocator: std.mem.Allocator, dotenv_path: ?[]c
         }
     }
     return result;
+}
+
+pub fn freeConfig(allocator: std.mem.Allocator, config: anytype) void {
+    const T = @TypeOf(config);
+    inline for (std.meta.fields(T)) |field| {
+        if (field.type == []const u8) {
+            allocator.free(@field(config, field.name));
+        } else if (field.type == ?[]const u8) {
+            if (@field(config, field.name)) |slice| {
+                allocator.free(slice);
+            }
+        }
+    }
 }
 
 pub fn ManagedAllocator(comptime T: type) type {
@@ -65,8 +84,11 @@ pub fn loadAllManaged(comptime T: type, base_allocator: std.mem.Allocator, doten
     };
 }
 
-fn findInDotEnv(allocator: std.mem.Allocator, path: []const u8, target_key: []const u8) !?[]const u8 {
-    const file = std.fs.cwd().openFile(path, .{}) catch |err| switch (err) {
+fn findInDotEnv(allocator: std.mem.Allocator, path: ?[]const u8, target_key: ?[]const u8) !?[]const u8 {
+    if (path == null or target_key == null) {
+        return null;
+    }
+    const file = std.fs.cwd().openFile(path.?, .{}) catch |err| switch (err) {
         error.FileNotFound => return null,
         else => return err,
     };
@@ -85,7 +107,7 @@ fn findInDotEnv(allocator: std.mem.Allocator, path: []const u8, target_key: []co
         var iter = std.mem.splitScalar(u8, trimmed, '=');
         const key = std.mem.trim(u8, iter.first(), " ");
 
-        if (std.mem.eql(u8, key, target_key)) {
+        if (std.mem.eql(u8, key, target_key.?)) {
             const val = std.mem.trim(u8, iter.rest(), " \"'");
             return try allocator.dupe(u8, val);
         }
