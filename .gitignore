@@ -1,4 +1,10 @@
+# zig
 .zig-cache/
 zig-out/
 *.o
+
+# vscode, vscodium
 .vscode/
+
+# local tests
+.env_test

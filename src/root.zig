@@ -20,7 +20,7 @@ fn getFieldValueOwned(allocator: std.mem.Allocator, field: anytype, dotenv_path:
 
     // .env File
     if (found_val == null) {
-        found_val = try findInDotEnv(allocator, dotenv_path, field.name);
+        found_val = try findInDotenvFile(allocator, dotenv_path, field.name);
     }
 
     return found_val;
@@ -49,7 +49,7 @@ pub fn loadAll(comptime T: type, allocator: std.mem.Allocator, dotenv_path: ?[]c
     return result;
 }
 
-pub fn freeConfig(allocator: std.mem.Allocator, config: anytype) void {
+pub fn deinit(allocator: std.mem.Allocator, config: anytype) void {
     const T = @TypeOf(config);
     inline for (std.meta.fields(T)) |field| {
         if (field.type == []const u8) {
@@ -60,6 +60,15 @@ pub fn freeConfig(allocator: std.mem.Allocator, config: anytype) void {
             }
         }
     }
+}
+
+pub fn deinitMap(allocator: std.mem.Allocator, map: *std.StringHashMap([]const u8)) void {
+    var it = map.iterator();
+    while (it.next()) |entry| {
+        allocator.free(entry.key_ptr.*);
+        allocator.free(entry.value_ptr.*);
+    }
+    map.deinit();
 }
 
 pub fn ManagedAllocator(comptime T: type) type {
@@ -84,7 +93,43 @@ pub fn loadAllManaged(comptime T: type, base_allocator: std.mem.Allocator, doten
     };
 }
 
-fn findInDotEnv(allocator: std.mem.Allocator, path: ?[]const u8, target_key: ?[]const u8) !?[]const u8 {
+pub fn loadDotenvAsMap(allocator: std.mem.Allocator, path: []const u8) !std.StringHashMap([]const u8) {
+    const file = try std.fs.cwd().openFile(path, .{});
+    defer file.close();
+
+    var map = std.StringHashMap([]const u8).init(allocator);
+    errdefer deinitMap(allocator, &map);
+
+    var file_buf: [1024]u8 = undefined;
+    var reader_wrapper = file.reader(&file_buf);
+    const reader = &reader_wrapper.interface;
+
+    while (reader.takeDelimiterInclusive('\n')) |line| {
+        const trimmed = std.mem.trim(u8, line, " \r\t");
+        if (trimmed.len == 0 or trimmed[0] == '#') {
+            continue;
+        }
+
+        var iter = std.mem.splitScalar(u8, trimmed, '=');
+        const raw_key = std.mem.trim(u8, iter.first(), " \n\r\t");
+        const raw_val = std.mem.trim(u8, iter.next() orelse "", " \n\r\t");
+
+        const key = try allocator.dupe(u8, raw_key);
+        errdefer allocator.free(key);
+        const val = try allocator.dupe(u8, raw_val);
+        errdefer allocator.free(val);
+
+        try map.put(key, val);
+    } else |err| {
+        if (err == error.EndOfStream) {
+            return map;
+        } else return err;
+    }
+
+    return map;
+}
+
+fn findInDotenvFile(allocator: std.mem.Allocator, path: ?[]const u8, target_key: ?[]const u8) !?[]const u8 {
     if (path == null or target_key == null) {
         return null;
     }
@@ -102,6 +147,7 @@ fn findInDotEnv(allocator: std.mem.Allocator, path: ?[]const u8, target_key: ?[]
 
         const trimmed = std.mem.trim(u8, line, " \r\t");
 
+        // this is important to skip commented lines in the file.
         if (trimmed.len == 0 or trimmed[0] == '#') continue;
 
         var iter = std.mem.splitScalar(u8, trimmed, '=');
