@@ -1,8 +1,8 @@
 # Env variables for development/testing.
-export ZEBRA_TEST_NODE_ENV=testing
-export ZEBRA_TEST_API_KEY=secret_123
-export ZEBRA_TEST_PORT=3000
-export ZEBRA_TEST_IS_DEBUG=true
+export ZEBRA_TEST_OS_NODE_ENV=testing
+export ZEBRA_TEST_OS_API_KEY=secret_123
+export ZEBRA_TEST_OS_PORT=3000
+export ZEBRA_TEST_OS_IS_DEBUG=true
 
 .DEFAULT_GOAL := all
 .PHONY: all build test run format clean
@@ -15,7 +15,6 @@ build:
 
 test:
 	@echo "Running tests..."
-	@printenv | grep -E 'ZEBRA_TEST' > .env_test
 	zig build test --summary all
 
 run:
@@ -28,4 +27,4 @@ format:
 
 clean:
 	@echo "Cleaning up..."
-	rm -rf .zig-cache zig-out .env_test
+	rm -rf .zig-cache zig-out

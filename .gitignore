@@ -5,6 +5,3 @@ zig-out/
 
 # vscode, vscodium
 .vscode/
-
-# local tests
-.env_test
