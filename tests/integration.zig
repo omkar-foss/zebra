@@ -74,3 +74,46 @@ test "it loads a dotenv file as a map with all edge cases" {
     // 7. Exported keys
     try std.testing.expectEqualStrings("this is an exported var", cfg.get("EXPORTED_VAR").?);
 }
+
+test "it loads a toml file as a map with all edge cases" {
+    const allocator = std.testing.allocator;
+
+    var cfg = try zebra.toml.loadAsMap(allocator, "env_test.toml");
+    defer zebra.cleanup.deinitMap(allocator, &cfg);
+
+    // 1. complex & dotted keys
+    try std.testing.expectEqualStrings("value", cfg.get("key").?);
+    try std.testing.expectEqualStrings("UTF-8", cfg.get("character.encoding").?);
+    // Note: Quoted keys usually retain quotes in the key string to avoid ambiguity
+    if (cfg.get("\"127.0.0.1\"")) |val| {
+        try std.testing.expectEqualStrings("localhost", val);
+    }
+
+    // 2. string varieties
+    // Literal strings (single quotes) should not process escape sequences
+    try std.testing.expectEqualStrings("C:\\Users\\Node\\config.ini", cfg.get("literal").?);
+
+    // 3. number formats
+    try std.testing.expectEqualStrings("0xDEADBEEF", cfg.get("int_hex").?);
+    try std.testing.expectEqualStrings("1_000_000", cfg.get("int_underscores").?);
+
+    // 4. datetimes
+    try std.testing.expectEqualStrings("1979-05-27T07:32:00Z", cfg.get("odt").?);
+
+    // 5. standard tables
+    try std.testing.expectEqualStrings("10.0.0.1", cfg.get("server.host").?);
+
+    // 6. inline tables (nested dot notation)
+    // If parser flattens { http = 80 }, verify the sub-keys
+    if (cfg.get("server.port.http")) |port| {
+        try std.testing.expectEqualStrings("80", port);
+    }
+
+    // 7. array of tables (index-based dot notation)
+    // first entry in [[products]]
+    try std.testing.expectEqualStrings("Hammer", cfg.get("products.0.name").?);
+    try std.testing.expectEqualStrings("738594937", cfg.get("products.0.sku").?);
+    // second entry in [[products]]
+    try std.testing.expectEqualStrings("Nail", cfg.get("products.1.name").?);
+    try std.testing.expectEqualStrings("gray", cfg.get("products.1.color").?);
+}

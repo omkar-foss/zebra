@@ -1,0 +1,52 @@
+# 1. complex keys (bare, quoted, and dotted)
+key = "value"
+"127.0.0.1" = "localhost"
+character.encoding = "UTF-8"
+"quoted . dot" = "allowed"
+
+# 2. string varieties
+basic = "I'm a basic string with escapes: \t \n \u0020"
+multi_line = """
+The first newline is trimmed.
+All other whitespace is preserved.
+"""
+literal = 'C:\Users\Node\config.ini'
+# No escaping
+multi_literal = '''
+No escaping here either.
+Even 'single quotes' are fine.
+'''
+
+# 3. numbers (integers and floats)
+int_hex = 0xDEADBEEF
+int_oct = 0o755
+int_bin = 0b11010110
+int_underscores = 1_000_000
+float_scientific = 1e+12
+float_special = inf # Supports inf, -inf, and nan
+
+# 4. datetimes (offset, local, and partial)
+odt = 1979-05-27T07:32:00Z
+odt_offset = 1979-05-27T00:32:00-07:00
+ldt = 1979-05-27T07:32:00
+ld = 1979-05-27
+lt = 07:32:00
+
+# 5. arrays (nested and mixed types)
+nested_arrays = [ [ 1, 2 ], [3, 4, 5] ]
+mixed_array = [ "red", 42, 1.23, true ] # 1.0 allows mixed types
+
+# 6. tables and inline tables
+[server]
+host = "10.0.0.1"
+port = { http = 80, https = 443 } # Inline table
+
+# 7. array of tables
+[[products]]
+name = "Hammer"
+sku = 738594937
+
+[[products]]
+name = "Nail"
+sku = 284758393
+color = "gray"
