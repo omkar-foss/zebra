@@ -1,0 +1,82 @@
+# 1. standard nesting
+person:
+  name:
+    first: John
+    last: Doe
+  age: 30
+
+# 2. edge case: different indentation levels (2 vs 4 spaces)
+metadata:
+    created_at: 2023-10-01
+    tags:
+      internal: true
+      version: 1.0
+
+# 3. edge case: quoted keys and values (should be trimmed)
+"company.info": 'Silicon Valley'
+'status': "Active"
+
+# 4. edge case: comments and empty lines
+# This is a full line comment
+  # This is an indented comment
+location: Earth # Inline comment
+
+# 5. edge case: deep nesting
+a:
+  b:
+    c:
+      d: value
+
+# 6. edge case: empty/null values
+empty_key:
+next_key: valid_value
+
+# 7. edge case: special characters in values
+path: /usr/local/bin
+url: https://ziglang.org
+
+
+# 8. misc test
+
+    # leading whitespace before a comment
+  
+  
+  
+person:  # inline comment after parent
+  name:   
+    # comment between parent and child
+    first: "John"    # spacing before/after quotes
+    last: 'Doe'    
+  
+  details:
+    height: 180 # Normal
+    
+    # gap with only whitespace and comments
+    
+    weight: 75
+    
+      # deeply indented comment (should be ignored)
+
+empty_section:
+  sub_empty:
+  
+# indentation
+# moving from 2 spaces to 4 spaces to 0 spaces
+level1:
+  level2:
+      level3:
+          level4: "deep"
+back_to_one: "value"
+
+# quotes
+"quoted.key.with.dots": "value.with.dots"
+'single': 'quoted'
+url_test: https://ziglang.org
+mixed_chars: "!@#$%^&*()_+-=[]{}|;':,./<>?"
+
+# trailing noise
+final_key: last_value
+    # indented comment at the very end of file
+    
+# empty lines at eof
+  

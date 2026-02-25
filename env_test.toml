@@ -36,12 +36,34 @@ lt = 07:32:00
 nested_arrays = [ [ 1, 2 ], [3, 4, 5] ]
 mixed_array = [ "red", 42, 1.23, true ] # 1.0 allows mixed types
 
-# 6. tables and inline tables
+# 6. misc tests
+# string escaping
+regex = """I said "Hello" and \\"""
+literal_path = 'C:\Users\Name\'
+blank = ""
+
+# number formatting
+hex_val = 0xDEAD_BEEF
+float_inf = inf
+
+# arrays
+trailing_arr = [ 1, 2, ]
+nested_mixed = [ [ 1.2 ], "mixed" ]
+
+# inline tables
+inline_point = { x = 1, y = { z = 2 } }
+
+# path merging & dotted keys
+a.b.c = 1
+[a]
+d = 2
+
+# 7. tables and inline tables
 [server]
 host = "10.0.0.1"
-port = { http = 80, https = 443 } # Inline table
+port = { http = 80, https = 443 } # inline table with inline comment
 
-# 7. array of tables
+# 8. array of tables
 [[products]]
 name = "Hammer"
 sku = 738594937

@@ -88,6 +88,7 @@ test "it loads a toml file as a map with all edge cases" {
     if (cfg.get("\"127.0.0.1\"")) |val| {
         try std.testing.expectEqualStrings("localhost", val);
     }
+    try std.testing.expectEqualStrings("allowed", cfg.get("quoted . dot").?);
 
     // 2. string varieties
     // Literal strings (single quotes) should not process escape sequences
@@ -103,17 +104,88 @@ test "it loads a toml file as a map with all edge cases" {
     // 5. standard tables
     try std.testing.expectEqualStrings("10.0.0.1", cfg.get("server.host").?);
 
-    // 6. inline tables (nested dot notation)
-    // If parser flattens { http = 80 }, verify the sub-keys
+    // 6. misc tests
+    // path merging (a.b.c and [a] d=2 should both exist under 'a')
+    try std.testing.expectEqualStrings("1", cfg.get("a.b.c").?);
+    try std.testing.expectEqualStrings("2", cfg.get("a.d").?);
+    // strings escaping
+    try std.testing.expect(std.mem.containsAtLeast(u8, cfg.get("regex").?, 1, "Hello"));
+    try std.testing.expectEqualStrings("C:\\Users\\Name\\", cfg.get("literal_path").?);
+    try std.testing.expectEqualStrings("", cfg.get("blank").?);
+    // numbers
+    try std.testing.expectEqualStrings("0xDEAD_BEEF", cfg.get("hex_val").?);
+    try std.testing.expectEqualStrings("inf", cfg.get("float_inf").?);
+    // arrays
+    // most basic loaders flatten arrays or store them as a raw string block
+    try std.testing.expect(cfg.get("trailing_arr") != null);
+    try std.testing.expect(cfg.get("nested_mixed") != null);
+    // inline tables with nesting
+    try std.testing.expectEqualStrings("1", cfg.get("inline_point.x").?);
+    try std.testing.expectEqualStrings("2", cfg.get("inline_point.y.z").?);
+
+    // 7. simple inline tables
     if (cfg.get("server.port.http")) |port| {
         try std.testing.expectEqualStrings("80", port);
     }
 
-    // 7. array of tables (index-based dot notation)
-    // first entry in [[products]]
+    // 8. array of tables
+    // first item of [[products]]
     try std.testing.expectEqualStrings("Hammer", cfg.get("products.0.name").?);
     try std.testing.expectEqualStrings("738594937", cfg.get("products.0.sku").?);
-    // second entry in [[products]]
+    // second item of [[products]]
     try std.testing.expectEqualStrings("Nail", cfg.get("products.1.name").?);
     try std.testing.expectEqualStrings("gray", cfg.get("products.1.color").?);
+}
+
+test "it loads a yaml file as a map with all edge cases" {
+    const allocator = std.testing.allocator;
+
+    var cfg = try zebra.yaml.loadAsMap(allocator, "env_test.yaml");
+    defer zebra.cleanup.deinitMap(allocator, &cfg);
+
+    // 1. standard nesting
+    try std.testing.expectEqualStrings("John", cfg.get("person.name.first").?);
+    try std.testing.expectEqualStrings("Doe", cfg.get("person.name.last").?);
+    try std.testing.expectEqualStrings("30", cfg.get("person.age").?);
+
+    // 2. indentation shifts (4-space vs 2-space)
+    try std.testing.expectEqualStrings("2023-10-01", cfg.get("metadata.created_at").?);
+    try std.testing.expectEqualStrings("true", cfg.get("metadata.tags.internal").?);
+    try std.testing.expectEqualStrings("1.0", cfg.get("metadata.tags.version").?);
+
+    // 3. quoted keys and values
+    try std.testing.expectEqualStrings("Silicon Valley", cfg.get("company.info").?);
+    try std.testing.expectEqualStrings("Active", cfg.get("status").?);
+
+    // 4. inline comments
+    try std.testing.expectEqualStrings("Earth", cfg.get("location").?);
+
+    // 5. deep nesting
+    try std.testing.expectEqualStrings("value", cfg.get("a.b.c.d").?);
+
+    // 6. empty/null values (parents are not stored as values, only leaves)
+    try std.testing.expect(cfg.get("empty_key") == null);
+    try std.testing.expectEqualStrings("valid_value", cfg.get("next_key").?);
+
+    // 7. special characters
+    try std.testing.expectEqualStrings("/usr/local/bin", cfg.get("path").?);
+    try std.testing.expectEqualStrings("https://ziglang.org", cfg.get("url").?);
+
+    // 8. misc tests
+    // handling noise and deep nesting
+    try std.testing.expectEqualStrings("John", cfg.get("person.name.first").?);
+    try std.testing.expectEqualStrings("75", cfg.get("person.details.weight").?);
+
+    // indentation spaghetti
+    try std.testing.expectEqualStrings("deep", cfg.get("level1.level2.level3.level4").?);
+    try std.testing.expectEqualStrings("value", cfg.get("back_to_one").?);
+
+    // dots inside quotes (should not be split by the parser)
+    try std.testing.expectEqualStrings("value.with.dots", cfg.get("quoted.key.with.dots").?);
+
+    // special characters (urls and symbols)
+    try std.testing.expectEqualStrings("https://ziglang.org", cfg.get("url_test").?);
+
+    // end value
+    try std.testing.expectEqualStrings("last_value", cfg.get("final_key").?);
 }

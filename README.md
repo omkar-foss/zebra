@@ -4,7 +4,7 @@
 # Zebra ![Zig](https://img.shields.io/badge/Zig-%23F7A41D.svg?style=for-the-badge&logo=zig&logoColor=white)
 
 A zero dependency all-in-one config loader for Zig. Supports reading dotenv, toml,
-json and os env.
+yaml and os env.
 
 **I strive to abide by the [Not By AI 90% Rule](https://notbyai.fyi/not-by-ai-90-rule):**
 
