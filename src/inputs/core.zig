@@ -1,73 +1,95 @@
 const std = @import("std");
 const dotenv = @import("dotenv.zig");
+const osenv = @import("osenv.zig");
+const toml = @import("toml.zig");
+const yaml = @import("yaml.zig");
+const cleanup = @import("../utils/cleanup.zig");
 
-fn getFieldValueOwned(allocator: std.mem.Allocator, field: anytype, dotenv_path: ?[]const u8) !?[]const u8 {
-    var found_val: ?[]const u8 = null;
-    const args = try std.process.argsAlloc(allocator);
-    defer std.process.argsFree(allocator, args);
+/// Identifies file types and merges them into single configuration struct.
+pub fn loadFromMultiple(comptime T: type, allocator: std.mem.Allocator, paths: []const []const u8) !T {
+    // init master map to hold all merged values
+    var master_map = std.StringHashMap([]const u8).init(allocator);
+    defer cleanup.deinitMap(allocator, &master_map);
 
-    // Command-line flags (e.g. --port 3000)
-    for (args, 0..) |arg, i| {
-        if (std.mem.eql(u8, arg, "--" ++ field.name)) {
-            if (i + 1 < args.len) found_val = try allocator.dupe(u8, args[i + 1]);
-            break;
+    // iterate through paths and merge into master_map
+    for (paths) |path| {
+        const filename = std.fs.path.basename(path);
+
+        var file_map: std.StringHashMap([]u8) = undefined;
+        if (std.mem.endsWith(u8, filename, ".toml")) {
+            file_map = try toml.loadAsMap(allocator, path);
+        } else if (std.mem.endsWith(u8, filename, ".yaml") or std.mem.endsWith(u8, filename, ".yml")) {
+            file_map = try yaml.loadAsMap(allocator, path);
+        } else if (std.mem.startsWith(u8, filename, ".env")) {
+            std.debug.print("Loading dotenv file from path: {s}", .{path});
+            file_map = try dotenv.loadAsMap(allocator, path);
+        } else {
+            continue;
+        }
+
+        // merge file_map into master_map
+        var iter = file_map.iterator();
+        while (iter.next()) |entry| {
+            // Take the existing pointers from the file_map
+            const key = entry.key_ptr.*;
+            const val = entry.value_ptr.*;
+
+            // if master_map already has this key, free the OLD one before overwriting
+            if (try master_map.fetchPut(key, val)) |old| {
+                allocator.free(old.key);
+                allocator.free(old.value);
+            }
+        }
+        file_map.deinit();
+    }
+
+    // overwrite with values obtained from os env, as it always takes priority over files
+    var osenv_map = try osenv.loadAsMap(allocator);
+    defer cleanup.deinitMap(allocator, &osenv_map);
+    var osenv_iter = osenv_map.iterator();
+    while (osenv_iter.next()) |entry| {
+        const new_key = try allocator.dupe(u8, entry.key_ptr.*);
+        const new_val = try allocator.dupe(u8, entry.value_ptr.*);
+
+        if (try master_map.fetchPut(new_key, new_val)) |old| {
+            allocator.free(old.key);
+            allocator.free(old.value);
         }
     }
 
-    // OS environment
-    if (found_val == null) {
-        found_val = std.process.getEnvVarOwned(allocator, field.name) catch null;
-    }
-
-    // .env File
-    if (found_val == null) {
-        found_val = try dotenv.findInFile(allocator, dotenv_path, field.name);
-    }
-
-    return found_val;
-}
-
-pub fn loadAll(comptime T: type, allocator: std.mem.Allocator, dotenv_path: ?[]const u8) !T {
+    // map master_map to the result struct
     var result: T = undefined;
-    var found_val: ?[]const u8 = null;
+
+    var initialized = std.meta.fields(T).len;
+    _ = &initialized; // silence unused if comptime-known
+
     inline for (std.meta.fields(T)) |field| {
-        found_val = try getFieldValueOwned(allocator, field, dotenv_path);
-        if (found_val) |val| {
-            defer allocator.free(val);
-            @field(result, field.name) = switch (field.type) {
-                []const u8 => try allocator.dupe(u8, val),
-                u16 => try std.fmt.parseInt(u16, val, 10),
-                bool => std.mem.eql(u8, val, "true"),
-                else => @compileError("Unsupported type"),
-            };
+        if (master_map.get(field.name)) |val| {
+            switch (field.type) {
+                []const u8 => {
+                    const duped = try allocator.dupe(u8, val);
+                    errdefer allocator.free(duped);
+
+                    @field(result, field.name) = duped;
+                },
+                u16 => {
+                    @field(result, field.name) =
+                        try std.fmt.parseInt(u16, val, 10);
+                },
+                bool => {
+                    @field(result, field.name) =
+                        std.mem.eql(u8, val, "true");
+                },
+                else => @compileError("Unsupported type in struct"),
+            }
         } else if (field.default_value_ptr) |ptr| {
-            const default = @as(*const field.type, @ptrCast(@alignCast(ptr))).*;
+            const default =
+                @as(*const field.type, @ptrCast(@alignCast(ptr))).*;
             @field(result, field.name) = default;
         } else {
             return error.MissingConfiguration;
         }
     }
+
     return result;
-}
-
-pub fn ManagedAllocator(comptime T: type) type {
-    return struct {
-        arena: std.heap.ArenaAllocator,
-        value: T,
-
-        pub fn deinit(self: *@This()) void {
-            self.arena.deinit();
-        }
-    };
-}
-
-pub fn loadAllManaged(comptime T: type, base_allocator: std.mem.Allocator, dotenv_path: ?[]const u8) !ManagedAllocator(T) {
-    var arena = std.heap.ArenaAllocator.init(base_allocator);
-    errdefer arena.deinit();
-    const allocator = arena.allocator();
-    const cfg = try loadAll(T, allocator, dotenv_path);
-    return ManagedAllocator(T){
-        .arena = arena,
-        .value = cfg,
-    };
 }

@@ -13,7 +13,7 @@ pub fn deinit(allocator: std.mem.Allocator, config: anytype) void {
     }
 }
 
-pub fn deinitMap(allocator: std.mem.Allocator, map: *std.StringHashMap([]u8)) void {
+pub fn deinitMap(allocator: std.mem.Allocator, map: anytype) void {
     var it = map.iterator();
     while (it.next()) |entry| {
         allocator.free(entry.key_ptr.*);

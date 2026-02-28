@@ -132,22 +132,22 @@ fn explodeInlineTable(
             const pair = std.mem.trim(u8, content[start..i], " \t\r\n");
             if (pair.len > 0) {
                 if (std.mem.indexOfScalar(u8, pair, '=')) |eq_idx| {
-                    const inner_k = std.mem.trim(u8, pair[0..eq_idx], " \t\"'");
-                    const inner_v = std.mem.trim(u8, pair[eq_idx + 1 ..], " \t");
-                    const full_key = try std.fmt.allocPrint(allocator, "{s}.{s}", .{ prefix, inner_k });
+                    const inner_key = std.mem.trim(u8, pair[0..eq_idx], " \t\"'");
+                    const inner_val = std.mem.trim(u8, pair[eq_idx + 1 ..], " \t");
+                    const full_key = try std.fmt.allocPrint(allocator, "{s}.{s}", .{ prefix, inner_key });
 
-                    if (std.mem.startsWith(u8, inner_v, "{") and std.mem.endsWith(u8, inner_v, "}")) {
-                        try explodeInlineTable(allocator, map, full_key, inner_v[1 .. inner_v.len - 1]);
+                    if (std.mem.startsWith(u8, inner_val, "{") and std.mem.endsWith(u8, inner_val, "}")) {
+                        try explodeInlineTable(allocator, map, full_key, inner_val[1 .. inner_val.len - 1]);
                         allocator.free(full_key);
                     } else {
                         // store leaf value
-                        const processed_v = try utils.sanitizeValue(allocator, inner_v);
-                        const gop = try map.getOrPut(full_key);
-                        if (gop.found_existing) {
+                        const processed_val = try utils.sanitizeValue(allocator, inner_val);
+                        const map_gop = try map.getOrPut(full_key);
+                        if (map_gop.found_existing) {
                             allocator.free(full_key);
-                            allocator.free(gop.value_ptr.*);
+                            allocator.free(map_gop.value_ptr.*);
                         }
-                        gop.value_ptr.* = processed_v;
+                        map_gop.value_ptr.* = processed_val;
                     }
                 }
             }

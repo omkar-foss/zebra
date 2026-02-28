@@ -12,7 +12,7 @@ pub fn sanitizeValue(allocator: std.mem.Allocator, input: []const u8) ![]u8 {
 
     const value = if (is_double_quoted or is_single_quoted) input[1 .. input.len - 1] else input;
     var result = std.ArrayList(u8){};
-    defer result.deinit(allocator);
+    errdefer result.deinit(allocator);
     try result.ensureTotalCapacity(allocator, value.len);
     var idx: usize = 0;
     while (idx < value.len) {
