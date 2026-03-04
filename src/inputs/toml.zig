@@ -1,5 +1,6 @@
 const std = @import("std");
 const utils = @import("utils.zig");
+const cleanup = @import("../utils/cleanup.zig");
 
 pub fn loadAsMap(allocator: std.mem.Allocator, path: []const u8) !std.StringHashMap([]u8) {
     const file = try std.fs.cwd().openFile(path, .{});
@@ -9,14 +10,7 @@ pub fn loadAsMap(allocator: std.mem.Allocator, path: []const u8) !std.StringHash
     defer allocator.free(source);
 
     var map = std.StringHashMap([]u8).init(allocator);
-    errdefer {
-        var it = map.iterator();
-        while (it.next()) |entry| {
-            allocator.free(entry.key_ptr.*);
-            allocator.free(entry.value_ptr.*);
-        }
-        map.deinit();
-    }
+    errdefer cleanup.deinitMap(allocator, &map);
 
     var array_counters = std.StringHashMap(usize).init(allocator);
     defer {

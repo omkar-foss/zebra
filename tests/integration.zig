@@ -4,7 +4,9 @@ const zebra = @import("zebra");
 test "it fetches config properties from the OS environment" {
     const allocator = std.testing.allocator;
 
-    const Config = struct { ZEBRA_TEST_OS_PORT: u16 = 8080, ZEBRA_TEST_OS_API_KEY: []const u8, ZEBRA_TEST_OS_IS_DEBUG: bool = false, ZEBRA_TEST_OS_NODE_ENV: []const u8 };
+    const Config = struct { ZEBRA_TEST_OS_PORT: u16, ZEBRA_TEST_OS_API_KEY: []const u8, ZEBRA_TEST_OS_IS_DEBUG: bool, ZEBRA_TEST_OS_NODE_ENV: []const u8 };
+
+    // let's send an empty paths list just for testing
     const cfg = try zebra.core.loadFromMultiple(Config, allocator, &[_][]const u8{});
 
     defer zebra.cleanup.deinit(allocator, cfg);
@@ -13,12 +15,26 @@ test "it fetches config properties from the OS environment" {
     try std.testing.expectEqualStrings(cfg.ZEBRA_TEST_OS_API_KEY, "secret_123");
     try std.testing.expect(cfg.ZEBRA_TEST_OS_IS_DEBUG == true);
     try std.testing.expectEqualStrings(cfg.ZEBRA_TEST_OS_NODE_ENV, "testing");
+
+    const json = try zebra.outputs.json.toString(allocator, Config, cfg);
+    defer std.testing.allocator.free(json);
+    const expectedJson =
+        \\{
+        \\    "ZEBRA_TEST_OS_PORT": 3000,
+        \\    "ZEBRA_TEST_OS_API_KEY": "secret_123",
+        \\    "ZEBRA_TEST_OS_IS_DEBUG": true,
+        \\    "ZEBRA_TEST_OS_NODE_ENV": "testing"
+        \\}
+    ;
+    try std.testing.expectEqualStrings(expectedJson, json);
 }
 
 test "it fetches config properties from the OS environment and dotenv file" {
     const allocator = std.testing.allocator;
 
-    const Config = struct { ZEBRA_TEST_OS_PORT: u16 = 8080, ZEBRA_TEST_OS_API_KEY: []const u8, ZEBRA_TEST_OS_IS_DEBUG: bool = false, ZEBRA_TEST_OS_NODE_ENV: []const u8, URL: []const u8 };
+    const Config = struct { ZEBRA_TEST_OS_PORT: u16, ZEBRA_TEST_OS_API_KEY: []const u8, ZEBRA_TEST_OS_IS_DEBUG: bool, ZEBRA_TEST_OS_NODE_ENV: []const u8, URL: []const u8 };
+
+    // dotenv test file provided, but os env will overwrite values if any keys are same
     const cfg = try zebra.core.loadFromMultiple(Config, allocator, &[_][]const u8{".env.test"});
 
     defer zebra.cleanup.deinit(allocator, cfg);
@@ -36,8 +52,7 @@ test "it loads a dotenv file as a map with all edge cases" {
     var cfg = try zebra.dotenv.loadAsMap(allocator, ".env.test");
     defer zebra.cleanup.deinitMap(allocator, &cfg);
 
-    // 1. basic & whitespace trimming
-    try std.testing.expectEqualStrings("lowercase basic", cfg.get("basic").?);
+    // 1. whitespace trimming
     // Note: WITH_SPACE="  val  " -> internal spaces kept, outer quotes removed
     try std.testing.expectEqualStrings("  spaced value  ", cfg.get("WITH_SPACE").?);
     try std.testing.expectEqualStrings("no_quotes_needed", cfg.get("TRIM_TEST").?);

@@ -8,8 +8,7 @@ const cleanup = @import("../utils/cleanup.zig");
 /// Identifies file types and merges them into single configuration struct.
 pub fn loadFromMultiple(comptime T: type, allocator: std.mem.Allocator, paths: []const []const u8) !T {
     // init master map to hold all merged values
-    var master_map = std.StringHashMap([]const u8).init(allocator);
-    defer cleanup.deinitMap(allocator, &master_map);
+    var master_map = std.StringHashMap([]u8).init(allocator);
 
     // iterate through paths and merge into master_map
     for (paths) |path| {
@@ -28,34 +27,32 @@ pub fn loadFromMultiple(comptime T: type, allocator: std.mem.Allocator, paths: [
         }
 
         // merge file_map into master_map
-        var iter = file_map.iterator();
-        while (iter.next()) |entry| {
-            // Take the existing pointers from the file_map
-            const key = entry.key_ptr.*;
-            const val = entry.value_ptr.*;
+        var file_map_iter = file_map.iterator();
+        while (file_map_iter.next()) |entry| {
+            const new_key = try allocator.dupe(u8, entry.key_ptr.*);
+            const new_val = try allocator.dupe(u8, entry.value_ptr.*);
 
-            // if master_map already has this key, free the OLD one before overwriting
-            if (try master_map.fetchPut(key, val)) |old| {
-                allocator.free(old.key);
+            if (try master_map.fetchPut(new_key, new_val)) |old| {
+                allocator.free(new_key);
                 allocator.free(old.value);
             }
         }
-        file_map.deinit();
+        cleanup.deinitMap(allocator, &file_map);
     }
 
     // overwrite with values obtained from os env, as it always takes priority over files
     var osenv_map = try osenv.loadAsMap(allocator);
-    defer cleanup.deinitMap(allocator, &osenv_map);
     var osenv_iter = osenv_map.iterator();
     while (osenv_iter.next()) |entry| {
         const new_key = try allocator.dupe(u8, entry.key_ptr.*);
         const new_val = try allocator.dupe(u8, entry.value_ptr.*);
 
         if (try master_map.fetchPut(new_key, new_val)) |old| {
-            allocator.free(old.key);
+            allocator.free(new_key);
             allocator.free(old.value);
         }
     }
+    cleanup.deinitMap(allocator, &osenv_map);
 
     // map master_map to the result struct
     var result: T = undefined;
@@ -67,10 +64,7 @@ pub fn loadFromMultiple(comptime T: type, allocator: std.mem.Allocator, paths: [
         if (master_map.get(field.name)) |val| {
             switch (field.type) {
                 []const u8 => {
-                    const duped = try allocator.dupe(u8, val);
-                    errdefer allocator.free(duped);
-
-                    @field(result, field.name) = duped;
+                    @field(result, field.name) = try allocator.dupe(u8, val);
                 },
                 u16 => {
                     @field(result, field.name) =
@@ -87,9 +81,12 @@ pub fn loadFromMultiple(comptime T: type, allocator: std.mem.Allocator, paths: [
                 @as(*const field.type, @ptrCast(@alignCast(ptr))).*;
             @field(result, field.name) = default;
         } else {
+            std.debug.print("Missing configuration key: {s}\n", .{field.name});
             return error.MissingConfiguration;
         }
     }
+
+    cleanup.deinitMap(allocator, &master_map);
 
     return result;
 }
