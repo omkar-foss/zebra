@@ -42,6 +42,7 @@ pub fn loadAsMap(allocator: std.mem.Allocator, path: []const u8) !std.StringHash
 
             const key = try allocator.dupe(u8, raw_key);
             if (try map.fetchPut(key, val)) |old| {
+                allocator.free(key);
                 allocator.free(old.value);
             }
         }
