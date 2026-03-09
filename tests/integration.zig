@@ -4,19 +4,19 @@ const zebra = @import("zebra");
 test "it fetches config properties from the OS environment" {
     const allocator = std.testing.allocator;
 
-    const Config = struct { ZEBRA_TEST_OS_PORT: u16, ZEBRA_TEST_OS_API_KEY: []const u8, ZEBRA_TEST_OS_IS_DEBUG: bool, ZEBRA_TEST_OS_NODE_ENV: []const u8 };
+    const CfgStruct = struct { ZEBRA_TEST_OS_PORT: u16, ZEBRA_TEST_OS_API_KEY: []const u8, ZEBRA_TEST_OS_IS_DEBUG: bool, ZEBRA_TEST_OS_NODE_ENV: []const u8 };
 
     // let's send an empty paths list just for testing
-    const cfg = try zebra.core.loadFromMultiple(Config, allocator, &[_][]const u8{});
+    var config = zebra.Config(CfgStruct).init(allocator);
+    defer config.deinit();
 
-    defer zebra.cleanup.deinit(allocator, cfg);
+    const loadedCfg = try config.loadAsStruct(&[_][]const u8{});
+    try std.testing.expect(loadedCfg.ZEBRA_TEST_OS_PORT == 3000);
+    try std.testing.expectEqualStrings(loadedCfg.ZEBRA_TEST_OS_API_KEY, "secret_123");
+    try std.testing.expect(loadedCfg.ZEBRA_TEST_OS_IS_DEBUG == true);
+    try std.testing.expectEqualStrings(loadedCfg.ZEBRA_TEST_OS_NODE_ENV, "testing");
 
-    try std.testing.expect(cfg.ZEBRA_TEST_OS_PORT == 3000);
-    try std.testing.expectEqualStrings(cfg.ZEBRA_TEST_OS_API_KEY, "secret_123");
-    try std.testing.expect(cfg.ZEBRA_TEST_OS_IS_DEBUG == true);
-    try std.testing.expectEqualStrings(cfg.ZEBRA_TEST_OS_NODE_ENV, "testing");
-
-    const json = try zebra.outputs.json.toString(allocator, Config, cfg);
+    const json = try zebra.outputs.json.toString(allocator, CfgStruct, loadedCfg);
     defer std.testing.allocator.free(json);
     const expectedJson =
         \\{
@@ -32,24 +32,23 @@ test "it fetches config properties from the OS environment" {
 test "it fetches config properties from the OS environment and dotenv file" {
     const allocator = std.testing.allocator;
 
-    const Config = struct { ZEBRA_TEST_OS_PORT: u16, ZEBRA_TEST_OS_API_KEY: []const u8, ZEBRA_TEST_OS_IS_DEBUG: bool, ZEBRA_TEST_OS_NODE_ENV: []const u8, URL: []const u8 };
+    const CfgStruct = struct { ZEBRA_TEST_OS_PORT: u16, ZEBRA_TEST_OS_API_KEY: []const u8, ZEBRA_TEST_OS_IS_DEBUG: bool, ZEBRA_TEST_OS_NODE_ENV: []const u8, URL: []const u8 };
 
     // dotenv test file provided, but os env will overwrite values if any keys are same
-    const cfg = try zebra.core.loadFromMultiple(Config, allocator, &[_][]const u8{".env.test"});
+    var config = zebra.Config(CfgStruct).init(allocator);
+    defer config.deinit();
 
-    defer zebra.cleanup.deinit(allocator, cfg);
-
-    try std.testing.expect(cfg.ZEBRA_TEST_OS_PORT == 3000);
-    try std.testing.expectEqualStrings(cfg.ZEBRA_TEST_OS_API_KEY, "secret_123");
-    try std.testing.expect(cfg.ZEBRA_TEST_OS_IS_DEBUG == true);
-    try std.testing.expectEqualStrings(cfg.ZEBRA_TEST_OS_NODE_ENV, "testing");
-    try std.testing.expectEqualStrings(cfg.URL, "https://api.example.com/v1?query=test");
+    const loadedCfg = try config.loadAsStruct(&[_][]const u8{".env.test"});
+    try std.testing.expect(loadedCfg.ZEBRA_TEST_OS_PORT == 3000);
+    try std.testing.expectEqualStrings(loadedCfg.ZEBRA_TEST_OS_API_KEY, "secret_123");
+    try std.testing.expect(loadedCfg.ZEBRA_TEST_OS_IS_DEBUG == true);
+    try std.testing.expectEqualStrings(loadedCfg.ZEBRA_TEST_OS_NODE_ENV, "testing");
+    try std.testing.expectEqualStrings(loadedCfg.URL, "https://api.example.com/v1?query=test");
 }
 
 test "it loads a dotenv file as a map with all edge cases" {
     const allocator = std.testing.allocator;
-
-    var cfg = try zebra.dotenv.loadAsMap(allocator, ".env.test");
+    var cfg = try zebra.core.loadAsMap(allocator, &[_][]const u8{".env.test"});
     defer zebra.cleanup.deinitMap(allocator, &cfg);
 
     // 1. whitespace trimming
@@ -95,8 +94,7 @@ test "it loads a dotenv file as a map with all edge cases" {
 
 test "it loads a toml file as a map with all edge cases" {
     const allocator = std.testing.allocator;
-
-    var cfg = try zebra.toml.loadAsMap(allocator, "env_test.toml");
+    var cfg = try zebra.core.loadAsMap(allocator, &[_][]const u8{"env_test.toml"});
     defer zebra.cleanup.deinitMap(allocator, &cfg);
 
     // 1. complex & dotted keys
@@ -158,18 +156,20 @@ test "it loads a toml file as a map with all edge cases" {
 test "it loads a yaml file as a map with all edge cases" {
     const allocator = std.testing.allocator;
 
-    var cfg = try zebra.yaml.loadAsMap(allocator, "env_test.yaml");
+    var cfg: std.StringHashMap([]u8) = try zebra.core.loadAsMap(allocator, &[_][]const u8{"env_test.yaml"});
     defer zebra.cleanup.deinitMap(allocator, &cfg);
 
     // 1. standard nesting
     try std.testing.expectEqualStrings("John", cfg.get("person.name.first").?);
     try std.testing.expectEqualStrings("Doe", cfg.get("person.name.last").?);
     try std.testing.expectEqualStrings("30", cfg.get("person.age").?);
+    try std.testing.expectEqual(30, try zebra.core.getMapField(i64, &cfg, "person.age"));
 
     // 2. indentation shifts (4-space vs 2-space)
-    try std.testing.expectEqualStrings("2023-10-01", cfg.get("metadata.created_at").?);
+    try std.testing.expectEqualStrings("2026-03-01", cfg.get("metadata.created_at").?);
     try std.testing.expectEqualStrings("true", cfg.get("metadata.tags.internal").?);
     try std.testing.expectEqualStrings("1.0", cfg.get("metadata.tags.version").?);
+    try std.testing.expectEqual(1.0, zebra.core.getMapField(f64, &cfg, "metadata.tags.version"));
 
     // 3. quoted keys and values
     try std.testing.expectEqualStrings("Silicon Valley", cfg.get("company.info").?);
@@ -193,6 +193,7 @@ test "it loads a yaml file as a map with all edge cases" {
     // handling noise and deep nesting
     try std.testing.expectEqualStrings("John", cfg.get("person.name.first").?);
     try std.testing.expectEqualStrings("75", cfg.get("person.details.weight").?);
+    try std.testing.expectEqual(75, try zebra.core.getMapField(i16, &cfg, "person.details.weight"));
 
     // indentation spaghetti
     try std.testing.expectEqualStrings("deep", cfg.get("level1.level2.level3.level4").?);
