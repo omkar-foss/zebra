@@ -1,0 +1,20 @@
+name: Zig on-push CI tests
+
+on:
+  push:
+    branches: ["main"]
+  pull_request:
+    branches: ["main"]
+
+# As per usage mentioned here:
+# https://codeberg.org/mlugg/setup-zig#usage
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    name: Build and Test
+    steps:
+      - uses: actions/checkout@v3
+      - uses: https://codeberg.org/mlugg/setup-zig@v2
+        with:
+          version: 0.15.2
+      - run: make test
