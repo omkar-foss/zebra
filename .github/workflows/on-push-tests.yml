@@ -6,7 +6,7 @@ on:
   pull_request:
     branches: ["main"]
 
-# As per usage mentioned here:
+# Usage as mentioned here:
 # https://codeberg.org/mlugg/setup-zig#usage
 jobs:
   test:
