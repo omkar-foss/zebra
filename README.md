@@ -3,7 +3,7 @@
 # Zebra ![Zig](https://img.shields.io/badge/Zig-%23F7A41D.svg?style=for-the-badge&logo=zig&logoColor=white)
 
 A simple, fast, all-in-one config loader for Zig. Supports reading dotenv, toml,
-yaml and os env. Supports and tested on Zig 0.15.2.
+yaml and os env. Fully-functional and tested on Zig 0.15.2.
 
 ## Design
 
@@ -48,7 +48,7 @@ pub fn main() !void {
 
     const allocator = gpa.allocator();
 
-    var cfg: std.StringHashMap([]u8) = try zebra.core.loadAsMap(allocator, &[_][]const u8{"env.yaml"});
+    var cfg: std.StringHashMap([]u8) = try zebra.core.loadAsMap(allocator, &[_][]const u8{"env_test.yaml"});
     defer zebra.cleanup.deinitMap(allocator, &cfg);
 
     std.debug.print("Output: {s}\n", .{cfg.get("person.name.first").?});
