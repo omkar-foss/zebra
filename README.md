@@ -66,7 +66,7 @@ Refer to [integration.zig](./tests/integration.zig) for detailed usage examples.
 
 ## Contributing
 
-I'd really appreciate any help towards making Zebra better from the community. Please check out [CONTRIBUTING.md](CONTRIBUTING.md) to get started!
+I'd really appreciate any help from the community towards making Zebra better. Please check out [CONTRIBUTING.md](CONTRIBUTING.md) to get started!
 
 ### Note on AI usage
 
