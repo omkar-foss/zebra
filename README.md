@@ -16,7 +16,7 @@ yaml and os env.
 
 ## Usage
 
-### Installation
+### Step 1. Install Zebra
 
 - Fetch Zebra as a dependency to your Zig project:
 
@@ -24,18 +24,45 @@ yaml and os env.
 zig fetch --save "git+https://github.com/omkar-foss/zebra#main"
 ```
 
-- In build.zig, add Zebra as a module dependency:
+- In your project's `build.zig`, add Zebra as a module dependency by placing below code before `b.installArtifact(exe);`:
 
 ```zig
 const zebra = b.dependency("zebra", .{
     .target = target,
     .optimize = optimize,
 });
+exe.root_module.addImport("zebra", zebra.module("zebra"));
 ```
 
-### Loading a config file as a map
+### Step 2. Load yaml file as a map and print a key in it
 
-Refer to [integration.zig](./tests/integration.zig) for detailed examples.
+To try out below example, copy the file [`env_test.yaml`](env_test.yaml) to your project folder, and then update your `src/main.zig` as follows:
+
+```zig
+const std = @import("std");
+const zebra = @import("zebra");
+
+pub fn main() !void {
+    var gpa = std.heap.GeneralPurposeAllocator(.{}){};
+    defer _ = gpa.deinit();
+
+    const allocator = gpa.allocator();
+
+    var cfg: std.StringHashMap([]u8) = try zebra.core.loadAsMap(allocator, &[_][]const u8{"env.yaml"});
+    defer zebra.cleanup.deinitMap(allocator, &cfg);
+
+    std.debug.print("Output: {s}\n", .{cfg.get("person.name.first").?});
+}
+```
+
+And then run `zig build run`, you'll get the below output:
+
+```bash
+$ zig build run
+Output: John
+```
+
+Refer to [integration.zig](./tests/integration.zig) for detailed usage examples.
 
 ## Contributing
 
