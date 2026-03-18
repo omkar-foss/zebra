@@ -3,7 +3,7 @@
 # Zebra ![Zig](https://img.shields.io/badge/Zig-%23F7A41D.svg?style=for-the-badge&logo=zig&logoColor=white)
 
 A simple, fast, all-in-one config loader for Zig. Supports reading dotenv, toml,
-yaml and os env.
+yaml and os env. Supports and tested on Zig 0.15.2.
 
 ## Design
 
