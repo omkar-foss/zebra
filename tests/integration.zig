@@ -90,6 +90,31 @@ test "it loads a dotenv file as a map with all edge cases" {
 
     // 7. Exported keys
     try std.testing.expectEqualStrings("this is an exported var", cfg.get("EXPORTED_VAR").?);
+
+    const json = try zebra.outputs.json.toStringMap(allocator, cfg, &[_][]const u8{ "WITH_SPACE", "TRIM_TEST", "MULTIPLE_EQUALS", "URL", "EMPTY_VAL", "SINGLE_QUOTE", "SQ_ESCAPED", "SQ_INTERNAL_DQ", "DOUBLE_QUOTE", "DQ_ESCAPED", "DQ_INTERNAL_SQ", "MIXED_QUOTES", "KEY_WITH_COMMENT", "KEY_WITH_COMMENT_SECRET", "BASIC", "basic", "EXPORTED_VAR" });
+    defer std.testing.allocator.free(json);
+    const expectedJson =
+        \\{
+        \\    "WITH_SPACE": "  spaced value  ",
+        \\    "TRIM_TEST": "no_quotes_needed",
+        \\    "MULTIPLE_EQUALS": "key=value=extra",
+        \\    "URL": "https://api.example.com/v1?query=test",
+        \\    "EMPTY_VAL": "",
+        \\    "SINGLE_QUOTE": "literal\\nnewline",
+        \\    "SQ_ESCAPED": "It's a string",
+        \\    "SQ_INTERNAL_DQ": "String with \"double\" quotes",
+        \\    "DOUBLE_QUOTE": "interpreted\nnewline",
+        \\    "DQ_ESCAPED": "Contains \"quotes\" and \\ backslashes",
+        \\    "DQ_INTERNAL_SQ": "String with 'single' quotes",
+        \\    "MIXED_QUOTES": "'nested'",
+        \\    "KEY_WITH_COMMENT": "value",
+        \\    "KEY_WITH_COMMENT_SECRET": "secret#password",
+        \\    "BASIC": "UPPERCASE BASIC",
+        \\    "basic": "lowercase basic",
+        \\    "EXPORTED_VAR": "this is an exported var"
+        \\}
+    ;
+    try std.testing.expectEqualStrings(expectedJson, json);
 }
 
 test "it loads a toml file as a map with all edge cases" {
