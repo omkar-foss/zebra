@@ -36,7 +36,13 @@ lt = 07:32:00
 nested_arrays = [ [ 1, 2 ], [3, 4, 5] ]
 mixed_array = [ "red", 42, 1.23, true ] # 1.0 allows mixed types
 
-# 6. misc tests
+# 6. some credentials
+AWS_SECRET_ACCESS_KEY = "bLablABlaFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY"
+AZURE_CLIENT_SECRET = "bLablABlaFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY"
+PASSWORD_SALT = "blablablasalt"
+BITBUCKET_TOKEN = "token123"
+
+# 7. misc tests
 # string escaping
 regex = """I said "Hello" and \\"""
 literal_path = 'C:\Users\Name\'
@@ -58,12 +64,12 @@ a.b.c = 1
 [a]
 d = 2
 
-# 7. tables and inline tables
+# 8. tables and inline tables
 [server]
 host = "10.0.0.1"
 port = { http = 80, https = 443 } # inline table with inline comment
 
-# 8. array of tables
+# 9. array of tables
 [[products]]
 name = "Hammer"
 sku = 738594937

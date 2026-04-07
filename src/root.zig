@@ -30,13 +30,13 @@ pub fn Config(comptime T: type) type {
             }
         }
 
-        pub fn loadAsMap(self: *Self, paths: []const []const u8) !std.StringHashMap([]u8) {
-            self.map = try core.loadAsMap(self.allocator, paths);
+        pub fn loadAsMap(self: *Self, paths: []const []const u8, opts: core.LoadOpts) !std.StringHashMap([]u8) {
+            self.map = try core.loadAsMap(self.allocator, paths, opts);
             return self.map;
         }
 
-        pub fn loadAsStruct(self: *Self, paths: []const []const u8) !T {
-            self.data = try core.loadAsStruct(T, self.allocator, paths);
+        pub fn loadAsStruct(self: *Self, paths: []const []const u8, opts: core.LoadOpts) !T {
+            self.data = try core.loadAsStruct(T, self.allocator, paths, opts);
             return self.data.?;
         }
 

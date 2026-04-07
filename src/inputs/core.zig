@@ -4,9 +4,12 @@ const osenv = @import("osenv.zig");
 const toml = @import("toml.zig");
 const yaml = @import("yaml.zig");
 const cleanup = @import("../utils/cleanup.zig");
+const security = @import("../utils/security.zig");
+
+pub const LoadOpts = struct { unmask: bool = false };
 
 /// Identifies file types and merges them into single configuration string hash map.
-pub fn loadAsMap(allocator: std.mem.Allocator, paths: []const []const u8) !std.StringHashMap([]u8) {
+pub fn loadAsMap(allocator: std.mem.Allocator, paths: []const []const u8, opts: LoadOpts) !std.StringHashMap([]u8) {
     // init master map to hold all merged values
     var master_map = std.StringHashMap([]u8).init(allocator);
 
@@ -29,7 +32,15 @@ pub fn loadAsMap(allocator: std.mem.Allocator, paths: []const []const u8) !std.S
         var file_map_iter = file_map.iterator();
         while (file_map_iter.next()) |entry| {
             const new_key = try allocator.dupe(u8, entry.key_ptr.*);
-            const new_val = try allocator.dupe(u8, entry.value_ptr.*);
+            var new_val: []u8 = undefined;
+            const keep_masked = opts.unmask == false;
+            const isSensitiveKey = try security.isSensitiveKey(new_key);
+
+            if (keep_masked and isSensitiveKey) {
+                new_val = try allocator.dupe(u8, "XXXX");
+            } else {
+                new_val = try allocator.dupe(u8, entry.value_ptr.*);
+            }
 
             if (try master_map.fetchPut(new_key, new_val)) |old| {
                 allocator.free(new_key);
@@ -44,7 +55,15 @@ pub fn loadAsMap(allocator: std.mem.Allocator, paths: []const []const u8) !std.S
     var osenv_iter = osenv_map.iterator();
     while (osenv_iter.next()) |entry| {
         const new_key = try allocator.dupe(u8, entry.key_ptr.*);
-        const new_val = try allocator.dupe(u8, entry.value_ptr.*);
+        var new_val: []u8 = undefined;
+        const keep_masked = opts.unmask == false;
+        const isSensitiveKey = try security.isSensitiveKey(new_key);
+
+        if (keep_masked and isSensitiveKey) {
+            new_val = try allocator.dupe(u8, "XXXX");
+        } else {
+            new_val = try allocator.dupe(u8, entry.value_ptr.*);
+        }
 
         if (try master_map.fetchPut(new_key, new_val)) |old| {
             allocator.free(new_key);
@@ -57,9 +76,9 @@ pub fn loadAsMap(allocator: std.mem.Allocator, paths: []const []const u8) !std.S
 }
 
 /// Identifies file types and merges them into single configuration struct.
-pub fn loadAsStruct(comptime T: type, allocator: std.mem.Allocator, paths: []const []const u8) !T {
+pub fn loadAsStruct(comptime T: type, allocator: std.mem.Allocator, paths: []const []const u8, opts: LoadOpts) !T {
     // init master map to hold all merged values
-    var master_map = try loadAsMap(allocator, paths);
+    var master_map = try loadAsMap(allocator, paths, opts);
 
     // map master_map to the result struct
     var result: T = undefined;
