@@ -12,8 +12,9 @@ all: build
 build:
 	@echo "Build the project..."
 	zig build
+	mv zig-out/bin/zebra .
 
-test:
+test: clean build
 	@echo "Running tests..."
 	zig build test --summary all
 
@@ -27,4 +28,4 @@ format:
 
 clean:
 	@echo "Cleaning up..."
-	rm -rf .zig-cache zig-out
+	rm -rf .zig-cache zig-out zebra

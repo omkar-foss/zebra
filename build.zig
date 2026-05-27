@@ -145,7 +145,7 @@ pub fn build(b: *std.Build) void {
     // test_step.dependOn(&run_mod_tests.step);
     // test_step.dependOn(&run_exe_tests.step);
 
-    // integration tests externally defined in tests folder.
+    // integration tests defined in tests folder.
     const integration_tests = b.addTest(.{
         .root_module = b.createModule(.{
             .root_source_file = b.path("tests/integration.zig"),
@@ -156,6 +156,18 @@ pub fn build(b: *std.Build) void {
     integration_tests.root_module.addImport("zebra", mod);
     const run_integration_tests = b.addRunArtifact(integration_tests);
     test_step.dependOn(&run_integration_tests.step);
+
+    // cli integration tests defined in tests folder.
+    const cli_integration_tests = b.addTest(.{
+        .root_module = b.createModule(.{
+            .root_source_file = b.path("tests/cli_integration.zig"),
+            .target = target,
+            .optimize = optimize,
+        }),
+    });
+    cli_integration_tests.root_module.addImport("zebra", mod);
+    const run_cli_integration_tests = b.addRunArtifact(cli_integration_tests);
+    test_step.dependOn(&run_cli_integration_tests.step);
 
     // Just like flags, top level steps are also listed in the `--help` menu.
     //

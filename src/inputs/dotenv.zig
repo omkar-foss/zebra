@@ -8,7 +8,7 @@ pub fn loadAsMap(allocator: std.mem.Allocator, path: []const u8) !std.StringHash
 
     var map = std.StringHashMap([]u8).init(allocator);
 
-    var file_buf: [1024]u8 = undefined;
+    var file_buf: [4096]u8 = undefined;
     var reader_wrapper = file.reader(&file_buf);
     const reader = &reader_wrapper.interface;
 
