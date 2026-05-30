@@ -6,7 +6,7 @@ const yaml = @import("yaml.zig");
 const cleanup = @import("../utils/cleanup.zig");
 const security = @import("../utils/security.zig");
 
-pub const LoadOpts = struct { unmask: bool = false };
+pub const LoadOpts = struct { unmask: bool = false, cli_mode: bool = false };
 
 /// Identifies file types and merges them into single configuration string hash map.
 pub fn loadAsMap(allocator: std.mem.Allocator, paths: []const []const u8, opts: LoadOpts) !std.StringHashMap([]u8) {
@@ -50,27 +50,30 @@ pub fn loadAsMap(allocator: std.mem.Allocator, paths: []const []const u8, opts: 
         cleanup.deinitMap(allocator, &file_map);
     }
 
-    // overwrite with values obtained from os env, as it always takes priority over files
-    var osenv_map = try osenv.loadAsMap(allocator);
-    var osenv_iter = osenv_map.iterator();
-    while (osenv_iter.next()) |entry| {
-        const new_key = try allocator.dupe(u8, entry.key_ptr.*);
-        var new_val: []u8 = undefined;
-        const keep_masked = opts.unmask == false;
-        const isSensitiveKey = try security.isSensitiveKey(new_key);
+    // we don't load os env variables in cli mode wherein args are specified via input files only.
+    if (!opts.cli_mode) {
+        // overwrite with values obtained from os env, as it always takes priority over files
+        var osenv_map = try osenv.loadAsMap(allocator);
+        var osenv_iter = osenv_map.iterator();
+        while (osenv_iter.next()) |entry| {
+            const new_key = try allocator.dupe(u8, entry.key_ptr.*);
+            var new_val: []u8 = undefined;
+            const keep_masked = opts.unmask == false;
+            const isSensitiveKey = try security.isSensitiveKey(new_key);
 
-        if (keep_masked and isSensitiveKey) {
-            new_val = try allocator.dupe(u8, "XXXX");
-        } else {
-            new_val = try allocator.dupe(u8, entry.value_ptr.*);
-        }
+            if (keep_masked and isSensitiveKey) {
+                new_val = try allocator.dupe(u8, "XXXX");
+            } else {
+                new_val = try allocator.dupe(u8, entry.value_ptr.*);
+            }
 
-        if (try master_map.fetchPut(new_key, new_val)) |old| {
-            allocator.free(new_key);
-            allocator.free(old.value);
+            if (try master_map.fetchPut(new_key, new_val)) |old| {
+                allocator.free(new_key);
+                allocator.free(old.value);
+            }
         }
+        cleanup.deinitMap(allocator, &osenv_map);
     }
-    cleanup.deinitMap(allocator, &osenv_map);
 
     return master_map;
 }

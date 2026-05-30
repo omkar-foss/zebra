@@ -5,3 +5,6 @@ zig-out/
 
 # vscode, vscodium
 .vscode/
+
+# zebra-related
+zebra

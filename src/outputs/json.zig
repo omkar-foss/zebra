@@ -13,11 +13,38 @@ pub fn toStringMap(allocator: std.mem.Allocator, map: anytype, keys: []const []c
     var json_ready_map = JsonMap{};
     defer json_ready_map.deinit(allocator);
 
-    for (keys) |key| {
-        if (map.get(key)) |value| {
-            try json_ready_map.map.put(allocator, key, value);
+    if (keys.len > 0) {
+        for (keys) |key| {
+            if (map.get(key)) |value| {
+                try json_ready_map.map.put(allocator, key, value);
+            }
+        }
+    } else {
+        var iter = map.iterator();
+        while (iter.next()) |entry| {
+            try json_ready_map.map.put(
+                allocator,
+                entry.key_ptr.*,
+                entry.value_ptr.*,
+            );
         }
     }
 
     return toString(allocator, JsonMap, json_ready_map);
+}
+
+pub fn writeToFile(json_string: []const u8, file_path: []const u8) !void {
+    const file = try std.fs.cwd().createFile(file_path, .{
+        .read = false,
+        .truncate = true,
+        .mode = 0o400,
+    });
+    defer file.close();
+
+    var write_buffer: [4096]u8 = undefined;
+    var buffered_file_writer = file.writer(&write_buffer);
+    const writer = &buffered_file_writer.interface;
+
+    try writer.writeAll(json_string);
+    try writer.flush();
 }
