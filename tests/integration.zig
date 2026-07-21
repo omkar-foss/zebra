@@ -38,7 +38,7 @@ test "it fetches config properties from the OS environment and dotenv file" {
     var config = zebra.Config(CfgStruct).init(allocator);
     defer config.deinit();
 
-    const loadedCfg = try config.loadAsStruct(&[_][]const u8{".env.test"}, .{ .unmask = true });
+    const loadedCfg = try config.loadAsStruct(&[_][]const u8{"tests/assets/.env.test"}, .{ .unmask = true });
     try std.testing.expect(loadedCfg.ZEBRA_TEST_OS_PORT == 3000);
     try std.testing.expectEqualStrings("secret_123", loadedCfg.ZEBRA_TEST_OS_API_KEY);
     try std.testing.expect(loadedCfg.ZEBRA_TEST_OS_IS_DEBUG == true);
@@ -48,7 +48,7 @@ test "it fetches config properties from the OS environment and dotenv file" {
 
 test "it loads a dotenv file as a map with all edge cases" {
     const allocator = std.testing.allocator;
-    var cfg = try zebra.core.loadAsMap(allocator, &[_][]const u8{".env.test"}, .{ .unmask = true });
+    var cfg = try zebra.core.loadAsMap(allocator, &[_][]const u8{"tests/assets/.env.test"}, .{ .unmask = true });
     defer zebra.cleanup.deinitMap(allocator, &cfg);
 
     // 1. whitespace trimming
@@ -119,7 +119,7 @@ test "it loads a dotenv file as a map with all edge cases" {
 
 test "it loads a toml file as a map with all edge cases" {
     const allocator = std.testing.allocator;
-    var cfg = try zebra.core.loadAsMap(allocator, &[_][]const u8{"env_test.toml"}, .{ .unmask = true });
+    var cfg = try zebra.core.loadAsMap(allocator, &[_][]const u8{"tests/assets/env_test.toml"}, .{ .unmask = true });
     defer zebra.cleanup.deinitMap(allocator, &cfg);
 
     // 1. complex & dotted keys
@@ -187,7 +187,7 @@ test "it loads a toml file as a map with all edge cases" {
 test "it loads a yaml file as a map with all edge cases" {
     const allocator = std.testing.allocator;
 
-    var cfg: std.StringHashMap([]u8) = try zebra.core.loadAsMap(allocator, &[_][]const u8{"env_test.yaml"}, .{ .unmask = true });
+    var cfg: std.StringHashMap([]u8) = try zebra.core.loadAsMap(allocator, &[_][]const u8{"tests/assets/env_test.yaml"}, .{ .unmask = true });
     defer zebra.cleanup.deinitMap(allocator, &cfg);
 
     // 1. standard nesting
@@ -271,7 +271,7 @@ test "it fetches config masked properties from OS environment by default" {
 test "it loads multiple env files in a map with sensitive creds masked by default" {
     const allocator = std.testing.allocator;
 
-    var cfg: std.StringHashMap([]u8) = try zebra.core.loadAsMap(allocator, &[_][]const u8{ "env_test.yaml", "env_test.toml" }, .{ .unmask = false });
+    var cfg: std.StringHashMap([]u8) = try zebra.core.loadAsMap(allocator, &[_][]const u8{ "tests/assets/env_test.yaml", "tests/assets/env_test.toml" }, .{ .unmask = false });
     defer zebra.cleanup.deinitMap(allocator, &cfg);
 
     // ### yaml file tests below

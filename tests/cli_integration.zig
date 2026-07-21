@@ -55,7 +55,7 @@ test "cli: -h flag also prints the help text" {
 test "cli: --input flag reads the specified file" {
     const allocator = std.testing.allocator;
     var child = std.process.Child.init(
-        &.{ "./zebra", "--input", "env_test.toml" },
+        &.{ "./zebra", "--input", "tests/assets/env_test.toml" },
         allocator,
     );
     child.stdout_behavior = .Pipe;
@@ -81,7 +81,7 @@ test "cli: --input flag reads the specified file" {
 test "cli: -i flag reads the specified file" {
     const allocator = std.testing.allocator;
     var child = std.process.Child.init(
-        &.{ "./zebra", "-i", "env_test.toml" },
+        &.{ "./zebra", "-i", "tests/assets/env_test.toml" },
         allocator,
     );
     child.stdout_behavior = .Pipe;
@@ -107,7 +107,7 @@ test "cli: -i flag reads the specified file" {
 test "cli: -k flag only build output json for specific keys from the specified file - case 1 (single key)" {
     const allocator = std.testing.allocator;
     var child = std.process.Child.init(
-        &.{ "./zebra", "-i", "env_test.toml", "-k", "float_inf" },
+        &.{ "./zebra", "-i", "tests/assets/env_test.toml", "-k", "float_inf" },
         allocator,
     );
     child.stdout_behavior = .Pipe;
@@ -133,7 +133,7 @@ test "cli: -k flag only build output json for specific keys from the specified f
 test "cli: -k flag only build output json for specific keys from the specified file - case 2 (two keys)" {
     const allocator = std.testing.allocator;
     var child = std.process.Child.init(
-        &.{ "./zebra", "-i", "env_test.toml", "-k", "float_inf", "-k", "products.0.name" },
+        &.{ "./zebra", "-i", "tests/assets/env_test.toml", "-k", "float_inf", "-k", "products.0.name" },
         allocator,
     );
     child.stdout_behavior = .Pipe;
@@ -159,7 +159,7 @@ test "cli: -k flag only build output json for specific keys from the specified f
 test "cli: --input flag without --output flag shows an warning to use STDOUT as default output" {
     const allocator = std.testing.allocator;
     var child = std.process.Child.init(
-        &.{ "./zebra", "-i", "env_test.toml" },
+        &.{ "./zebra", "-i", "tests/assets/env_test.toml" },
         allocator,
     );
     child.stdout_behavior = .Pipe;

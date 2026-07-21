@@ -5,8 +5,6 @@
 A simple, fast, all-in-one config loader for Zig. Supports reading dotenv, toml,
 yaml and os env. Fully-functional and tested on Zig 0.15.2.
 
-🏔️ Codeberg Mirror: https://codeberg.org/omkar-foss/zebra
-
 ## Design
 
 - Inspired by the wonderful [viper (golang)](https://github.com/spf13/viper). Stripes instead of
@@ -38,7 +36,7 @@ exe.root_module.addImport("zebra", zebra.module("zebra"));
 
 ### Step 2. Load yaml file as a map and print a key in it
 
-To try out below example, copy the file [`env_test.yaml`](env_test.yaml) to your project folder, and then update your `src/main.zig` as follows:
+To try out below example, copy the file [`env_test.yaml`](tests/assets/env_test.yaml) to your project folder, and then update your `src/main.zig` as follows:
 
 ```zig
 const std = @import("std");
