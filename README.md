@@ -68,8 +68,6 @@ Refer to [integration.zig](./tests/integration.zig) for detailed usage examples.
 
 I'd really appreciate any help from the community towards making Zebra better. Please check out [CONTRIBUTING.md](CONTRIBUTING.md) to get started!
 
-### Note on AI usage
+### Note on AI/LLM use
 
-Automated PRs without clear human oversight will be closed. I welcome the use of AI as a
-productivity tool, but all PRs must be authored, reviewed, and justified by a human who takes full
-responsibility for the logic, security, and maintenance of the code.
+This project follows a [strict no-AI policy](https://ziglang.org/code-of-conduct/#strict-no-llm-no-ai-policy) and does not accept contributions with AI/LLM use in any form.
